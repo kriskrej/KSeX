@@ -1,0 +1,43 @@
+name: KSeF → Google Sheets sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 2 * * *"  # daily 02:15 UTC
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore ./src/KsefSheetsSync/KsefSheetsSync.csproj
+
+      - name: Run sync
+        run: dotnet run --project ./src/KsefSheetsSync/KsefSheetsSync.csproj --configuration Release
+        env:
+          KSEF_BASE_URL: ${{ secrets.KSEF_BASE_URL }}
+          LOOKBACK_DAYS: ${{ secrets.LOOKBACK_DAYS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 }}
+          COMPANY1_NAME: ${{ secrets.COMPANY1_NAME }}
+          COMPANY1_NIP: ${{ secrets.COMPANY1_NIP }}
+          COMPANY1_KSEF_TOKEN: ${{ secrets.COMPANY1_KSEF_TOKEN }}
+          COMPANY1_REFRESH_TOKEN: ${{ secrets.COMPANY1_REFRESH_TOKEN }}
+          COMPANY1_SALES_TAB: ${{ secrets.COMPANY1_SALES_TAB }}
+          COMPANY1_PURCHASES_TAB: ${{ secrets.COMPANY1_PURCHASES_TAB }}
+          COMPANY1_SUBJECT_TYPE: ${{ secrets.COMPANY1_SUBJECT_TYPE }}
+          COMPANY2_NAME: ${{ secrets.COMPANY2_NAME }}
+          COMPANY2_NIP: ${{ secrets.COMPANY2_NIP }}
+          COMPANY2_KSEF_TOKEN: ${{ secrets.COMPANY2_KSEF_TOKEN }}
+          COMPANY2_REFRESH_TOKEN: ${{ secrets.COMPANY2_REFRESH_TOKEN }}
+          COMPANY2_SALES_TAB: ${{ secrets.COMPANY2_SALES_TAB }}
+          COMPANY2_PURCHASES_TAB: ${{ secrets.COMPANY2_PURCHASES_TAB }}
+          COMPANY2_SUBJECT_TYPE: ${{ secrets.COMPANY2_SUBJECT_TYPE }}
