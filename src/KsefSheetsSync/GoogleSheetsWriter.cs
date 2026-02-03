@@ -12,12 +12,12 @@ public sealed class GoogleSheetsWriter
 
     private static readonly string[] PurchaseHeaders =
     {
-        "typ", "id", "nr faktury", "zaKSEFowane", "sprzedawca", "NIP", "netto", "brutto", "waluta"
+        "typ", "id", "nr faktury", "zaKSEFowane", "sprzedawca", "NIP", "netto", "brutto", "waluta", "pozycje"
     };
 
     private static readonly string[] SalesHeaders =
     {
-        "typ", "id", "nr faktury", "zaKSEFowane", "nabywca", "NIP", "netto", "brutto", "waluta"
+        "typ", "id", "nr faktury", "zaKSEFowane", "nabywca", "NIP", "netto", "brutto", "waluta", "pozycje"
     };
 
     private const int IdColumnIndex = 2;
@@ -96,7 +96,12 @@ public sealed class GoogleSheetsWriter
         return set;
     }
 
-    public async Task AppendInvoicesAsync(string spreadsheetId, string sheetName, List<KsefInvoiceMetadata> invoices, bool isSales)
+    public async Task AppendInvoicesAsync(
+        string spreadsheetId,
+        string sheetName,
+        List<KsefInvoiceMetadata> invoices,
+        bool isSales,
+        IReadOnlyDictionary<string, string>? lineItemsByKsefNumber = null)
     {
         if (invoices.Count == 0) return;
 
@@ -106,6 +111,9 @@ public sealed class GoogleSheetsWriter
         {
             var partnerName = NormalizeCompanyName(isSales ? i.Buyer?.Name : i.Seller?.Name);
             var partnerNip = isSales ? i.Buyer?.Identifier?.Value : i.Seller?.Nip;
+            var lineItems = lineItemsByKsefNumber != null && lineItemsByKsefNumber.TryGetValue(i.KsefNumber, out var items)
+                ? items
+                : "";
 
             values.Add(new List<object>
             {
@@ -117,7 +125,8 @@ public sealed class GoogleSheetsWriter
                 partnerNip ?? "",
                 i.NetAmount ?? 0,
                 i.GrossAmount ?? 0,
-                i.Currency ?? ""
+                i.Currency ?? "",
+                lineItems
             });
         }
 

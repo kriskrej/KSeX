@@ -12,9 +12,7 @@ public sealed record CompanyConfig
 (
     string Name,
     string Nip,
-    string SalesTabName,
-    string PurchasesTabName,
-    IReadOnlyList<string> SubjectTypes,
+    string SpreadsheetId,
     string? KsefToken = null,
     string? RefreshToken = null
 );
@@ -23,7 +21,6 @@ public sealed class AppConfig
 {
     public required string KsefBaseUrl { get; init; }
     public required int LookbackDays { get; init; }
-    public required string SpreadsheetId { get; init; }
     public required GoogleConfig Google { get; init; }
     public required List<CompanyConfig> Companies { get; init; }
 
@@ -40,7 +37,6 @@ public sealed class AppConfig
         var lookback = int.TryParse(Opt("LOOKBACK_DAYS", dotEnv), out var d) ? d : 7;
 
         var google = new GoogleConfig(ServiceAccountJsonBase64: Req("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64", dotEnv));
-        var spreadsheetId = Req("SPREADSHEET_ID", dotEnv);
 
         var companies = new List<CompanyConfig>
         {
@@ -52,7 +48,6 @@ public sealed class AppConfig
         {
             KsefBaseUrl = baseUrl,
             LookbackDays = lookback,
-            SpreadsheetId = spreadsheetId,
             Google = google,
             Companies = companies
         };
@@ -62,11 +57,7 @@ public sealed class AppConfig
             var p = $"COMPANY{idx}_";
             var name = Req(p + "NAME", dotEnv);
             var nip = Req(p + "NIP", dotEnv);
-            var subjectTypes = ParseSubjectTypes(
-                Opt(p + "SUBJECT_TYPES", dotEnv),
-                Opt(p + "SUBJECT_TYPE", dotEnv));
-            var salesTab = Opt(p + "SALES_TAB", dotEnv) ?? $"C{idx}_Sprzedaż";
-            var purchasesTab = Opt(p + "PURCHASES_TAB", dotEnv) ?? $"C{idx}_Kupno";
+            var companySpreadsheetId = Req(p + "SPREADSHEET_ID", dotEnv);
             var ksefToken = Opt(p + "KSEF_TOKEN", dotEnv);
             var refreshToken = Opt(p + "REFRESH_TOKEN", dotEnv);
 
@@ -76,47 +67,11 @@ public sealed class AppConfig
             return new CompanyConfig(
                 Name: name,
                 Nip: nip,
-                SalesTabName: salesTab,
-                PurchasesTabName: purchasesTab,
-                SubjectTypes: subjectTypes,
+                SpreadsheetId: companySpreadsheetId,
                 KsefToken: string.IsNullOrWhiteSpace(ksefToken) ? null : ksefToken,
                 RefreshToken: string.IsNullOrWhiteSpace(refreshToken) ? null : refreshToken
             );
         }
-    }
-
-    private static IReadOnlyList<string> ParseSubjectTypes(string? subjectTypesRaw, string? subjectTypeRaw)
-    {
-        var raw = !string.IsNullOrWhiteSpace(subjectTypesRaw) ? subjectTypesRaw : subjectTypeRaw;
-        if (string.IsNullOrWhiteSpace(raw))
-            return new[] { "Subject1", "Subject2" };
-
-        var parts = raw.Split(
-            new[] { ',', ';', ' ', '\t', '\r', '\n' },
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        var list = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var part in parts)
-        {
-            var value = NormalizeSubjectType(part);
-            if (value.Length == 0)
-                continue;
-            if (seen.Add(value))
-                list.Add(value);
-        }
-
-        return list.Count == 0 ? new[] { "Subject1", "Subject2" } : list;
-    }
-
-    private static string NormalizeSubjectType(string value)
-    {
-        var trimmed = value.Trim();
-        if (trimmed.Equals("subject1", StringComparison.OrdinalIgnoreCase))
-            return "Subject1";
-        if (trimmed.Equals("subject2", StringComparison.OrdinalIgnoreCase))
-            return "Subject2";
-        return trimmed;
     }
 
     private static string? FindDotEnvPath()

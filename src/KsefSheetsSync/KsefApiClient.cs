@@ -150,6 +150,23 @@ public sealed class KsefApiClient
         return result;
     }
 
+    public async Task<string> GetInvoiceXmlAsync(
+        string accessToken,
+        string ksefNumber,
+        CancellationToken ct = default)
+    {
+        var url = $"invoices/ksef/{Uri.EscapeDataString(ksefNumber)}";
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        using var res = await _http.SendAsync(req, ct);
+        var body = await res.Content.ReadAsStringAsync(ct);
+        if (!res.IsSuccessStatusCode)
+            throw new HttpRequestException($"KSeF API error {(int)res.StatusCode} {res.ReasonPhrase}: {body}");
+
+        return body;
+    }
+
     private static StringContent CreateJsonContent<T>(T obj)
     {
         var json = JsonSerializer.Serialize(obj, JsonOpts);
