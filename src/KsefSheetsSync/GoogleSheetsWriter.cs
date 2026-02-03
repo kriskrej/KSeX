@@ -187,6 +187,16 @@ public sealed class GoogleSheetsWriter
             "sp. z o.o.",
             StringComparison.OrdinalIgnoreCase);
 
+        normalized = normalized.Replace(
+            "spółka akcyjna",
+            "SA",
+            StringComparison.OrdinalIgnoreCase);
+
+        normalized = normalized.Replace(
+            "spolka akcyjna",
+            "SA",
+            StringComparison.OrdinalIgnoreCase);
+
         return normalized;
     }
 }
