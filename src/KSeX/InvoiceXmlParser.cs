@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-namespace KsefSheetsSync;
+namespace KSeX;
 
 public static class InvoiceXmlParser
 {

@@ -1,15 +1,15 @@
 using System.Text.Json.Serialization;
 
-namespace KsefSheetsSync;
+namespace KSeX;
 
-public sealed record KsefAuthConfig
+public sealed record KSeXAuthConfig
 {
     public required string ContextNip { get; init; }
     public string? KsefToken { get; init; }
     public string? RefreshToken { get; init; }
 }
 
-public sealed record KsefAuthResult
+public sealed record KSeXAuthResult
 {
     public required string AccessToken { get; init; }
     public required DateTimeOffset ValidUntil { get; init; }
@@ -99,7 +99,7 @@ public sealed record QueryInvoicesMetadataResponse
     [JsonPropertyName("hasMore")] public bool HasMore { get; init; }
     [JsonPropertyName("isTruncated")] public bool IsTruncated { get; init; }
     [JsonPropertyName("permanentStorageHwmDate")] public DateTimeOffset? PermanentStorageHwmDate { get; init; }
-    [JsonPropertyName("invoices")] public List<KsefInvoiceMetadata> Invoices { get; init; } = new();
+    [JsonPropertyName("invoices")] public List<KSeXInvoiceMetadata> Invoices { get; init; } = new();
 }
 
 
@@ -121,7 +121,7 @@ public sealed record BuyerInfo
     [JsonPropertyName("name")] public string? Name { get; init; }
 }
 
-public sealed record KsefInvoiceMetadata
+public sealed record KSeXInvoiceMetadata
 {
     [JsonPropertyName("ksefNumber")] public required string KsefNumber { get; init; }
     [JsonPropertyName("invoiceNumber")] public string? InvoiceNumber { get; init; }

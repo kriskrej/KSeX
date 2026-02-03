@@ -1,10 +1,10 @@
-using KsefSheetsSync;
+using KSeX;
 
 var cfg = AppConfig.LoadFromEnvironment();
 Console.WriteLine($"KSeX → Google Sheets sync | baseUrl={cfg.KsefBaseUrl} | lookbackDays={cfg.LookbackDays}");
 
 using var http = new HttpClient { BaseAddress = new Uri(cfg.KsefBaseUrl.TrimEnd('/') + "/") };
-var ksef = new KsefApiClient(http);
+var ksef = new KSeXApiClient(http);
 var sheets = new GoogleSheetsWriter(cfg.Google);
 
 const string SalesSheetName = "Sprzedaż";
@@ -20,7 +20,7 @@ foreach (var company in cfg.Companies)
     Console.WriteLine($"\n== {company.Name} ({company.Nip}) ==");
     var spreadsheetId = company.SpreadsheetId;
 
-    var auth = await ksef.GetAccessTokenAsync(new KsefAuthConfig
+    var auth = await ksef.GetAccessTokenAsync(new KSeXAuthConfig
     {
         ContextNip = company.Nip,
         KsefToken = company.KsefToken,
@@ -32,7 +32,7 @@ foreach (var company in cfg.Companies)
     var subjectErrors = new List<Exception>();
     var anySuccess = false;
 
-    async Task<List<KsefInvoiceMetadata>> QuerySubjectAsync(string subjectType)
+    async Task<List<KSeXInvoiceMetadata>> QuerySubjectAsync(string subjectType)
     {
         try
         {
@@ -50,7 +50,7 @@ foreach (var company in cfg.Companies)
         {
             subjectErrors.Add(ex);
             Console.WriteLine($"WARNING: Query failed for subjectType={subjectType}: {ex.Message}");
-            return new List<KsefInvoiceMetadata>();
+            return new List<KSeXInvoiceMetadata>();
         }
     }
 
@@ -84,7 +84,7 @@ foreach (var company in cfg.Companies)
 
     Console.WriteLine($"Append sales={newSales.Count}, purchases={newPurchases.Count}");
 
-    async Task<Dictionary<string, string>> FetchLineItemsAsync(List<KsefInvoiceMetadata> invoices)
+    async Task<Dictionary<string, string>> FetchLineItemsAsync(List<KSeXInvoiceMetadata> invoices)
     {
         var map = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var invoice in invoices)
@@ -107,9 +107,9 @@ foreach (var company in cfg.Companies)
 
 Console.WriteLine("\nDone.");
 
-static List<KsefInvoiceMetadata> Deduplicate(List<KsefInvoiceMetadata> rows)
+static List<KSeXInvoiceMetadata> Deduplicate(List<KSeXInvoiceMetadata> rows)
 {
-    var dict = new Dictionary<string, KsefInvoiceMetadata>(StringComparer.Ordinal);
+    var dict = new Dictionary<string, KSeXInvoiceMetadata>(StringComparer.Ordinal);
     foreach (var row in rows)
         dict.TryAdd(row.KsefNumber, row);
     return dict.Values.ToList();

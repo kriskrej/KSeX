@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KsefSheetsSync", "src\KsefSheetsSync\KsefSheetsSync.csproj", "{B4E5D1B7-9D5F-4F0D-9C1E-3E4A4B2B0A7C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KSeX", "src\KSeX\KSeX.csproj", "{B4E5D1B7-9D5F-4F0D-9C1E-3E4A4B2B0A7C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

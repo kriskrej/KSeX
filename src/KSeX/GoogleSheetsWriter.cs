@@ -4,7 +4,7 @@ using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
 
-namespace KsefSheetsSync;
+namespace KSeX;
 
 public sealed class GoogleSheetsWriter
 {
@@ -99,7 +99,7 @@ public sealed class GoogleSheetsWriter
     public async Task AppendInvoicesAsync(
         string spreadsheetId,
         string sheetName,
-        List<KsefInvoiceMetadata> invoices,
+        List<KSeXInvoiceMetadata> invoices,
         bool isSales,
         IReadOnlyDictionary<string, string>? lineItemsByKsefNumber = null)
     {

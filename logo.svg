@@ -1,0 +1,35 @@
+<svg width="640" height="240" viewBox="0 0 640 240" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="640" height="240" rx="24" fill="#FFFFFF"></rect>
+
+  <!-- Icon -->
+  <g transform="translate(34,34)">
+    <rect x="0" y="0" width="120" height="132" rx="16" fill="#FFFFFF" stroke="#1D3557" stroke-width="10"></rect>
+
+    <!-- folded corner hint -->
+    <path d="M84 0 L120 36 V0 Z" fill="#1D3557" opacity="0.12"></path>
+
+    <!-- lines -->
+    <g stroke="#18A9E6" stroke-width="7" stroke-linecap="round" opacity="0.95">
+      <line x1="22" y1="44" x2="98" y2="44"></line>
+      <line x1="22" y1="68" x2="98" y2="68"></line>
+      <line x1="22" y1="92" x2="98" y2="92"></line>
+      <line x1="22" y1="116" x2="74" y2="116"></line>
+    </g>
+
+    <!-- small X mark -->
+    <g stroke="#18A9E6" stroke-width="6" stroke-linecap="round" opacity="0.75">
+      <line x1="84" y1="104" x2="108" y2="128"></line>
+      <line x1="108" y1="104" x2="84" y2="128"></line>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="180" y="134" font-family="Inter, Montserrat, Arial, sans-serif" font-weight="800" font-size="120" fill="#1D3557" letter-spacing="-3">
+    KS<tspan fill="#18A9E6">e</tspan>X
+  </text>
+
+  <!-- Tagline -->
+  <text x="320" y="210" text-anchor="middle" font-family="Inter, Montserrat, Arial, sans-serif" font-weight="600" font-size="26" fill="#1D3557" opacity="0.85" letter-spacing="-0.3">
+    KSeF to Excel, simple as fuck
+  </text>
+</svg>

@@ -4,9 +4,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 
-namespace KsefSheetsSync;
+namespace KSeX;
 
-public sealed class KsefApiClient
+public sealed class KSeXApiClient
 {
     private readonly HttpClient _http;
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -14,9 +14,9 @@ public sealed class KsefApiClient
         PropertyNameCaseInsensitive = true
     };
 
-    public KsefApiClient(HttpClient http) => _http = http;
+    public KSeXApiClient(HttpClient http) => _http = http;
 
-    public async Task<KsefAuthResult> GetAccessTokenAsync(KsefAuthConfig cfg, CancellationToken ct = default)
+    public async Task<KSeXAuthResult> GetAccessTokenAsync(KSeXAuthConfig cfg, CancellationToken ct = default)
     {
         if (!string.IsNullOrWhiteSpace(cfg.RefreshToken))
         {
@@ -29,20 +29,20 @@ public sealed class KsefApiClient
         return await AuthenticateWithKsefTokenAsync(cfg.ContextNip, cfg.KsefToken!, ct);
     }
 
-    private async Task<KsefAuthResult> GetAccessTokenFromRefreshTokenAsync(string refreshToken, CancellationToken ct)
+    private async Task<KSeXAuthResult> GetAccessTokenFromRefreshTokenAsync(string refreshToken, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Post, "auth/token/refresh");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
 
         var resp = await SendAsync<AuthenticationTokenRefreshResponse>(req, ct);
-        return new KsefAuthResult
+        return new KSeXAuthResult
         {
             AccessToken = resp.AccessToken.Token,
             ValidUntil = resp.AccessToken.ValidUntil
         };
     }
 
-    private async Task<KsefAuthResult> AuthenticateWithKsefTokenAsync(string contextNip, string ksefToken, CancellationToken ct)
+    private async Task<KSeXAuthResult> AuthenticateWithKsefTokenAsync(string contextNip, string ksefToken, CancellationToken ct)
     {
         // 1) challenge
         var challenge = await SendAsync<AuthenticationChallengeResponse>(
@@ -92,7 +92,7 @@ public sealed class KsefApiClient
         redeemReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", init.AuthenticationToken.Token);
         var tokens = await SendAsync<AuthenticationTokensResponse>(redeemReq, ct);
 
-        return new KsefAuthResult
+        return new KSeXAuthResult
         {
             AccessToken = tokens.AccessToken.Token,
             ValidUntil = tokens.AccessToken.ValidUntil,
@@ -116,14 +116,14 @@ public sealed class KsefApiClient
         return x509.GetRSAPublicKey() ?? throw new InvalidOperationException("Certificate does not contain RSA public key");
     }
 
-    public async Task<List<KsefInvoiceMetadata>> QueryInvoicesMetadataAsync(
+    public async Task<List<KSeXInvoiceMetadata>> QueryInvoicesMetadataAsync(
         string accessToken,
         string subjectType,
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken ct = default)
     {
-        var result = new List<KsefInvoiceMetadata>();
+        var result = new List<KSeXInvoiceMetadata>();
         var pageOffset = 0;
         while (true)
         {

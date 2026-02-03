@@ -1,11 +1,11 @@
 using System.Text;
 
-namespace KsefSheetsSync;
+namespace KSeX;
 
 public sealed record GoogleConfig
 (
     string ServiceAccountJsonBase64,
-    string ApplicationName = "KSeXSheetsSync"
+    string ApplicationName = "KSeX"
 );
 
 public sealed record CompanyConfig
@@ -89,7 +89,7 @@ public sealed class AppConfig
                 return candidate;
 
             if (Directory.Exists(Path.Combine(dir.FullName, ".git")) ||
-                File.Exists(Path.Combine(dir.FullName, "KsefSheetsSync.sln")))
+                File.Exists(Path.Combine(dir.FullName, "KSeX.sln")))
                 break;
 
             dir = dir.Parent;

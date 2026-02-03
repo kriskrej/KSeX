@@ -18,7 +18,7 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Restore
-        run: dotnet restore ./src/KsefSheetsSync/KsefSheetsSync.csproj
+        run: dotnet restore ./KSeX.sln
 
       - name: Preflight env
         shell: bash
@@ -62,7 +62,7 @@ jobs:
           LOOKBACK_DAYS: ${{ secrets.LOOKBACK_DAYS }}
 
       - name: Run sync
-        run: dotnet run --project ./src/KsefSheetsSync/KsefSheetsSync.csproj --configuration Release
+        run: dotnet run --project ./src/KSeX/KSeX.csproj --configuration Release
         env:
           LOOKBACK_DAYS: ${{ secrets.LOOKBACK_DAYS }}
           GOOGLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 }}
