@@ -1,4 +1,4 @@
-name: KSeF → Google Sheets sync
+name: KSeX → Google Sheets sync
 
 on:
   workflow_dispatch:

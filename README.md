@@ -1,4 +1,4 @@
-# KSeF → Google Sheets (minimal .NET 8)
+# KSeX → Google Sheets (minimal .NET 8)
 
 Pobiera metadane faktur z KSeF (sprzedaż i zakupy) dla 2 firm i dopisuje nowe wiersze do zakładek w Google Sheets.
 

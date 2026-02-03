@@ -1,7 +1,7 @@
 using KsefSheetsSync;
 
 var cfg = AppConfig.LoadFromEnvironment();
-Console.WriteLine($"KSeF → Google Sheets sync | baseUrl={cfg.KsefBaseUrl} | lookbackDays={cfg.LookbackDays}");
+Console.WriteLine($"KSeX → Google Sheets sync | baseUrl={cfg.KsefBaseUrl} | lookbackDays={cfg.LookbackDays}");
 
 using var http = new HttpClient { BaseAddress = new Uri(cfg.KsefBaseUrl.TrimEnd('/') + "/") };
 var ksef = new KsefApiClient(http);

@@ -5,7 +5,7 @@ namespace KsefSheetsSync;
 public sealed record GoogleConfig
 (
     string ServiceAccountJsonBase64,
-    string ApplicationName = "KsefSheetsSync"
+    string ApplicationName = "KSeXSheetsSync"
 );
 
 public sealed record CompanyConfig
