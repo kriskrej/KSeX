@@ -20,5 +20,5 @@ Dla każdej firmy (1 i 2):
 - COMPANY{n}_NIP
 - COMPANY{n}_KSEF_TOKEN lub COMPANY{n}_REFRESH_TOKEN
 - COMPANY{n}_SALES_TAB / COMPANY{n}_PURCHASES_TAB (opcjonalnie)
-- COMPANY{n}_SUBJECT_TYPE (opcjonalnie, domyślnie Subject1)
-
+- COMPANY{n}_SUBJECT_TYPES (opcjonalnie, domyślnie Subject1,Subject2)
+- COMPANY{n}_SUBJECT_TYPE (legacy, pojedyncza wartość)

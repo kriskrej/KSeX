@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace KsefSheetsSync;
 
 public sealed record GoogleConfig
@@ -12,7 +14,7 @@ public sealed record CompanyConfig
     string Nip,
     string SalesTabName,
     string PurchasesTabName,
-    string SubjectType,
+    IReadOnlyList<string> SubjectTypes,
     string? KsefToken = null,
     string? RefreshToken = null
 );
@@ -27,14 +29,18 @@ public sealed class AppConfig
 
     public static AppConfig LoadFromEnvironment()
     {
-        static string? Opt(string n) => Environment.GetEnvironmentVariable(n);
-        static string Req(string n) => Opt(n) ?? throw new InvalidOperationException($"Missing env var: {n}");
+        var dotEnv = DotEnv.Load(FindDotEnvPath());
 
-        var baseUrl = Opt("KSEF_BASE_URL") ?? "https://api.ksef.mf.gov.pl/v2";
-        var lookback = int.TryParse(Opt("LOOKBACK_DAYS"), out var d) ? d : 7;
+        static string? Opt(string n, IReadOnlyDictionary<string, string>? env)
+            => env != null && env.TryGetValue(n, out var v) ? v : Environment.GetEnvironmentVariable(n);
+        static string Req(string n, IReadOnlyDictionary<string, string>? env)
+            => Opt(n, env) ?? throw new InvalidOperationException($"Missing env var: {n}");
 
-        var google = new GoogleConfig(ServiceAccountJsonBase64: Req("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64"));
-        var spreadsheetId = Req("SPREADSHEET_ID");
+        var baseUrl = Opt("KSEF_BASE_URL", dotEnv) ?? "https://api.ksef.mf.gov.pl/v2";
+        var lookback = int.TryParse(Opt("LOOKBACK_DAYS", dotEnv), out var d) ? d : 7;
+
+        var google = new GoogleConfig(ServiceAccountJsonBase64: Req("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64", dotEnv));
+        var spreadsheetId = Req("SPREADSHEET_ID", dotEnv);
 
         var companies = new List<CompanyConfig>
         {
@@ -54,13 +60,15 @@ public sealed class AppConfig
         CompanyConfig LoadCompany(int idx)
         {
             var p = $"COMPANY{idx}_";
-            var name = Req(p + "NAME");
-            var nip = Req(p + "NIP");
-            var subjectType = Opt(p + "SUBJECT_TYPE") ?? "Subject1";
-            var salesTab = Opt(p + "SALES_TAB") ?? $"C{idx}_Sales";
-            var purchasesTab = Opt(p + "PURCHASES_TAB") ?? $"C{idx}_Purchases";
-            var ksefToken = Opt(p + "KSEF_TOKEN");
-            var refreshToken = Opt(p + "REFRESH_TOKEN");
+            var name = Req(p + "NAME", dotEnv);
+            var nip = Req(p + "NIP", dotEnv);
+            var subjectTypes = ParseSubjectTypes(
+                Opt(p + "SUBJECT_TYPES", dotEnv),
+                Opt(p + "SUBJECT_TYPE", dotEnv));
+            var salesTab = Opt(p + "SALES_TAB", dotEnv) ?? $"C{idx}_Sprzedaż";
+            var purchasesTab = Opt(p + "PURCHASES_TAB", dotEnv) ?? $"C{idx}_Kupno";
+            var ksefToken = Opt(p + "KSEF_TOKEN", dotEnv);
+            var refreshToken = Opt(p + "REFRESH_TOKEN", dotEnv);
 
             if (string.IsNullOrWhiteSpace(ksefToken) && string.IsNullOrWhiteSpace(refreshToken))
                 throw new InvalidOperationException($"Set either {p}KSEF_TOKEN or {p}REFRESH_TOKEN");
@@ -70,10 +78,128 @@ public sealed class AppConfig
                 Nip: nip,
                 SalesTabName: salesTab,
                 PurchasesTabName: purchasesTab,
-                SubjectType: subjectType,
+                SubjectTypes: subjectTypes,
                 KsefToken: string.IsNullOrWhiteSpace(ksefToken) ? null : ksefToken,
                 RefreshToken: string.IsNullOrWhiteSpace(refreshToken) ? null : refreshToken
             );
+        }
+    }
+
+    private static IReadOnlyList<string> ParseSubjectTypes(string? subjectTypesRaw, string? subjectTypeRaw)
+    {
+        var raw = !string.IsNullOrWhiteSpace(subjectTypesRaw) ? subjectTypesRaw : subjectTypeRaw;
+        if (string.IsNullOrWhiteSpace(raw))
+            return new[] { "Subject1", "Subject2" };
+
+        var parts = raw.Split(
+            new[] { ',', ';', ' ', '\t', '\r', '\n' },
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var list = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in parts)
+        {
+            var value = NormalizeSubjectType(part);
+            if (value.Length == 0)
+                continue;
+            if (seen.Add(value))
+                list.Add(value);
+        }
+
+        return list.Count == 0 ? new[] { "Subject1", "Subject2" } : list;
+    }
+
+    private static string NormalizeSubjectType(string value)
+    {
+        var trimmed = value.Trim();
+        if (trimmed.Equals("subject1", StringComparison.OrdinalIgnoreCase))
+            return "Subject1";
+        if (trimmed.Equals("subject2", StringComparison.OrdinalIgnoreCase))
+            return "Subject2";
+        return trimmed;
+    }
+
+    private static string? FindDotEnvPath()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        while (dir != null)
+        {
+            var candidate = Path.Combine(dir.FullName, ".env");
+            if (File.Exists(candidate))
+                return candidate;
+
+            if (Directory.Exists(Path.Combine(dir.FullName, ".git")) ||
+                File.Exists(Path.Combine(dir.FullName, "KsefSheetsSync.sln")))
+                break;
+
+            dir = dir.Parent;
+        }
+
+        return null;
+    }
+
+    private static class DotEnv
+    {
+        public static Dictionary<string, string>? Load(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                return null;
+
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var raw in File.ReadAllLines(path))
+            {
+                var line = raw.Trim();
+                if (line.Length == 0 || line.StartsWith('#'))
+                    continue;
+
+                if (line.StartsWith("export ", StringComparison.Ordinal))
+                    line = line[7..].TrimStart();
+
+                var idx = line.IndexOf('=');
+                if (idx <= 0)
+                    continue;
+
+                var key = line[..idx].Trim();
+                var value = line[(idx + 1)..].Trim();
+
+                if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+                    value = UnescapeDoubleQuoted(value[1..^1]);
+                else if (value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
+                    value = value[1..^1];
+
+                if (key.Length > 0)
+                    result[key] = value;
+            }
+
+            return result.Count == 0 ? null : result;
+        }
+
+        private static string UnescapeDoubleQuoted(string value)
+        {
+            var sb = new StringBuilder(value.Length);
+            for (var i = 0; i < value.Length; i++)
+            {
+                var ch = value[i];
+                if (ch == '\\' && i + 1 < value.Length)
+                {
+                    var next = value[++i];
+                    sb.Append(next switch
+                    {
+                        'n' => '\n',
+                        'r' => '\r',
+                        't' => '\t',
+                        '\\' => '\\',
+                        '"' => '"',
+                        _ => next
+                    });
+                }
+                else
+                {
+                    sb.Append(ch);
+                }
+            }
+
+            return sb.ToString();
         }
     }
 }

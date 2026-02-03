@@ -10,27 +10,45 @@ public sealed class GoogleSheetsWriter
 {
     private readonly SheetsService _service;
 
-    private static readonly string[] Headers =
+    private static readonly string[] PurchaseHeaders =
     {
-        "ksefNumber", "invoiceNumber", "issueDate", "invoicingDate", "acquisitionDate", "permanentStorageDate",
-        "sellerNip", "sellerName", "buyerIdType", "buyerIdValue", "buyerName",
-        "netAmount", "vatAmount", "grossAmount", "currency", "invoicingMode", "invoiceType",
-        "hasAttachment", "isSelfInvoicing", "invoiceHash"
+        "typ", "id", "nr faktury", "zaKSEFowane", "sprzedawca", "NIP", "netto", "brutto", "waluta"
     };
+
+    private static readonly string[] SalesHeaders =
+    {
+        "typ", "id", "nr faktury", "zaKSEFowane", "nabywca", "NIP", "netto", "brutto", "waluta"
+    };
+
+    private const int IdColumnIndex = 2;
 
     public GoogleSheetsWriter(GoogleConfig cfg)
     {
         var json = Encoding.UTF8.GetString(Convert.FromBase64String(cfg.ServiceAccountJsonBase64));
-        var cred = GoogleCredential.FromJson(json).CreateScoped(SheetsService.Scope.Spreadsheets);
+        var cred = CredentialFactory.FromJson<ServiceAccountCredential>(json)
+            .ToGoogleCredential()
+            .CreateScoped(SheetsService.Scope.Spreadsheets);
         _service = new SheetsService(new BaseClientService.Initializer { HttpClientInitializer = cred, ApplicationName = cfg.ApplicationName });
     }
 
-    public async Task EnsureSheetsExistAndHeadersAsync(string spreadsheetId, params string[] sheetNames)
+    public async Task EnsureSheetsExistAndHeadersAsync(string spreadsheetId, params (string SheetName, bool IsSales)[] sheets)
     {
+        var distinctSheets = sheets
+            .Where(s => !string.IsNullOrWhiteSpace(s.SheetName))
+            .GroupBy(s => s.SheetName, StringComparer.Ordinal)
+            .Select(g => g.First())
+            .ToList();
+
+        var sheetNames = distinctSheets.Select(s => s.SheetName).ToList();
+
         var ssReq = _service.Spreadsheets.Get(spreadsheetId);
         ssReq.Fields = "sheets(properties(title,sheetId))";
         var ss = await ssReq.ExecuteAsync();
-        var existing = ss.Sheets?.Select(s => s.Properties?.Title).Where(t => !string.IsNullOrWhiteSpace(t)).ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
+        var existing = ss.Sheets?
+            .Select(s => s.Properties?.Title)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t!)
+            .ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
 
         var missing = sheetNames.Where(n => !existing.Contains(n)).Distinct(StringComparer.Ordinal).ToList();
         if (missing.Count > 0)
@@ -43,20 +61,20 @@ public sealed class GoogleSheetsWriter
             await _service.Spreadsheets.BatchUpdate(batch, spreadsheetId).ExecuteAsync();
         }
 
-        foreach (var name in sheetNames.Distinct(StringComparer.Ordinal))
+        foreach (var sheet in distinctSheets)
         {
-            await EnsureHeaderAsync(spreadsheetId, name);
+            await EnsureHeaderAsync(spreadsheetId, sheet.SheetName, sheet.IsSales);
         }
     }
 
-    private async Task EnsureHeaderAsync(string spreadsheetId, string sheetName)
+    private async Task EnsureHeaderAsync(string spreadsheetId, string sheetName, bool isSales)
     {
-        var range = $"{sheetName}!A1:T1";
+        var headers = GetHeaders(isSales);
+        var range = $"{sheetName}!A1:{GetColumnLetter(headers.Length)}1";
         var get = await _service.Spreadsheets.Values.Get(spreadsheetId, range).ExecuteAsync();
-        var hasHeader = get.Values is { Count: > 0 } && get.Values[0].Count >= 1 && !string.IsNullOrWhiteSpace(get.Values[0][0]?.ToString());
-        if (hasHeader) return;
+        if (HeaderMatches(get.Values, headers)) return;
 
-        var vr = new ValueRange { Values = new List<IList<object>> { Headers.Cast<object>().ToList() } };
+        var vr = new ValueRange { Values = new List<IList<object>> { headers.Cast<object>().ToList() } };
         var upd = _service.Spreadsheets.Values.Update(vr, spreadsheetId, range);
         upd.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.RAW;
         await upd.ExecuteAsync();
@@ -64,7 +82,8 @@ public sealed class GoogleSheetsWriter
 
     public async Task<HashSet<string>> GetExistingKeysAsync(string spreadsheetId, string sheetName)
     {
-        var range = $"{sheetName}!A2:A";
+        var column = GetColumnLetter(IdColumnIndex);
+        var range = $"{sheetName}!{column}2:{column}";
         var resp = await _service.Spreadsheets.Values.Get(spreadsheetId, range).ExecuteAsync();
         var set = new HashSet<string>(StringComparer.Ordinal);
         if (resp.Values == null) return set;
@@ -77,42 +96,88 @@ public sealed class GoogleSheetsWriter
         return set;
     }
 
-    public async Task AppendInvoicesAsync(string spreadsheetId, string sheetName, List<KsefInvoiceMetadata> invoices)
+    public async Task AppendInvoicesAsync(string spreadsheetId, string sheetName, List<KsefInvoiceMetadata> invoices, bool isSales)
     {
         if (invoices.Count == 0) return;
 
+        var headers = GetHeaders(isSales);
         var values = new List<IList<object>>();
         foreach (var i in invoices)
         {
+            var partnerName = NormalizeCompanyName(isSales ? i.Buyer?.Name : i.Seller?.Name);
+            var partnerNip = isSales ? i.Buyer?.Identifier?.Value : i.Seller?.Nip;
+
             values.Add(new List<object>
             {
+                i.InvoiceType ?? "",
                 i.KsefNumber,
                 i.InvoiceNumber ?? "",
-                i.IssueDate ?? "",
-                i.InvoicingDate?.ToString("O") ?? "",
-                i.AcquisitionDate?.ToString("O") ?? "",
-                i.PermanentStorageDate?.ToString("O") ?? "",
-                i.Seller?.Nip ?? "",
-                i.Seller?.Name ?? "",
-                i.Buyer?.Identifier?.Type ?? "",
-                i.Buyer?.Identifier?.Value ?? "",
-                i.Buyer?.Name ?? "",
+                i.AcquisitionDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                partnerName ?? "",
+                partnerNip ?? "",
                 i.NetAmount ?? 0,
-                i.VatAmount ?? 0,
                 i.GrossAmount ?? 0,
-                i.Currency ?? "",
-                i.InvoicingMode ?? "",
-                i.InvoiceType ?? "",
-                i.HasAttachment ?? false,
-                i.IsSelfInvoicing ?? false,
-                i.InvoiceHash ?? ""
+                i.Currency ?? ""
             });
         }
 
         var vr = new ValueRange { Values = values };
-        var append = _service.Spreadsheets.Values.Append(vr, spreadsheetId, $"{sheetName}!A:T");
+        var append = _service.Spreadsheets.Values.Append(vr, spreadsheetId, $"{sheetName}!A:{GetColumnLetter(headers.Length)}");
         append.ValueInputOption = SpreadsheetsResource.ValuesResource.AppendRequest.ValueInputOptionEnum.USERENTERED;
         append.InsertDataOption = SpreadsheetsResource.ValuesResource.AppendRequest.InsertDataOptionEnum.INSERTROWS;
         await append.ExecuteAsync();
+    }
+
+    private static string[] GetHeaders(bool isSales)
+        => isSales ? SalesHeaders : PurchaseHeaders;
+
+    private static bool HeaderMatches(IList<IList<object>>? values, string[] headers)
+    {
+        if (values == null || values.Count == 0) return false;
+        var row = values[0];
+        if (row.Count < headers.Length) return false;
+        for (var i = 0; i < headers.Length; i++)
+        {
+            var cell = row[i]?.ToString() ?? "";
+            if (!string.Equals(cell, headers[i], StringComparison.Ordinal))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static string GetColumnLetter(int columnIndex)
+    {
+        if (columnIndex <= 0)
+            throw new ArgumentOutOfRangeException(nameof(columnIndex), "Column index must be positive.");
+
+        var letters = new StringBuilder();
+        var index = columnIndex;
+        while (index > 0)
+        {
+            index--;
+            letters.Insert(0, (char)('A' + (index % 26)));
+            index /= 26;
+        }
+
+        return letters.ToString();
+    }
+
+    private static string NormalizeCompanyName(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "";
+
+        var normalized = name.Replace(
+            "spółka z ograniczoną odpowiedzialnością",
+            "sp. z o.o.",
+            StringComparison.OrdinalIgnoreCase);
+
+        normalized = normalized.Replace(
+            "spolka z ograniczona odpowiedzialnoscia",
+            "sp. z o.o.",
+            StringComparison.OrdinalIgnoreCase);
+
+        return normalized;
     }
 }
