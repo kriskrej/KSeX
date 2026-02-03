@@ -29,11 +29,16 @@ public sealed class AppConfig
         var dotEnv = DotEnv.Load(FindDotEnvPath());
 
         static string? Opt(string n, IReadOnlyDictionary<string, string>? env)
-            => env != null && env.TryGetValue(n, out var v) ? v : Environment.GetEnvironmentVariable(n);
+        {
+            var value = env != null && env.TryGetValue(n, out var v)
+                ? v
+                : Environment.GetEnvironmentVariable(n);
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
         static string Req(string n, IReadOnlyDictionary<string, string>? env)
             => Opt(n, env) ?? throw new InvalidOperationException($"Missing env var: {n}");
 
-        var baseUrl = Opt("KSEF_BASE_URL", dotEnv) ?? "https://api.ksef.mf.gov.pl/v2";
+        const string baseUrl = "https://api.ksef.mf.gov.pl/v2";
         var lookback = int.TryParse(Opt("LOOKBACK_DAYS", dotEnv), out var d) ? d : 7;
 
         var google = new GoogleConfig(ServiceAccountJsonBase64: Req("GOOGLE_SERVICE_ACCOUNT_JSON_BASE64", dotEnv));

@@ -48,8 +48,6 @@ jobs:
             exit 1
           fi
         env:
-          KSEF_BASE_URL: ${{ secrets.KSEF_BASE_URL }}
-          LOOKBACK_DAYS: ${{ secrets.LOOKBACK_DAYS }}
           GOOGLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 }}
           COMPANY1_NAME: ${{ secrets.COMPANY1_NAME }}
           COMPANY1_NIP: ${{ secrets.COMPANY1_NIP }}
@@ -61,11 +59,11 @@ jobs:
           COMPANY2_SPREADSHEET_ID: ${{ secrets.COMPANY2_SPREADSHEET_ID }}
           COMPANY2_KSEF_TOKEN: ${{ secrets.COMPANY2_KSEF_TOKEN }}
           COMPANY2_REFRESH_TOKEN: ${{ secrets.COMPANY2_REFRESH_TOKEN }}
+          LOOKBACK_DAYS: ${{ secrets.LOOKBACK_DAYS }}
 
       - name: Run sync
         run: dotnet run --project ./src/KsefSheetsSync/KsefSheetsSync.csproj --configuration Release
         env:
-          KSEF_BASE_URL: ${{ secrets.KSEF_BASE_URL }}
           LOOKBACK_DAYS: ${{ secrets.LOOKBACK_DAYS }}
           GOOGLE_SERVICE_ACCOUNT_JSON_BASE64: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 }}
           COMPANY1_NAME: ${{ secrets.COMPANY1_NAME }}
