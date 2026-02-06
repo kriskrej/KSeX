@@ -71,8 +71,8 @@ foreach (var company in cfg.Companies)
     var existingSales = await sheets.GetExistingKeysAsync(spreadsheetId, SalesSheetName);
     var existingPurchases = await sheets.GetExistingKeysAsync(spreadsheetId, PurchasesSheetName);
 
-    var newSales = sales.Where(i => !existingSales.Contains(i.KsefNumber)).ToList();
-    var newPurchases = purchases.Where(i => !existingPurchases.Contains(i.KsefNumber)).ToList();
+    var newSales = FilterNewInvoices(sales, existingSales);
+    var newPurchases = FilterNewInvoices(purchases, existingPurchases);
 
     var newInvoices = newSales.Concat(newPurchases).ToList();
     var lineItemsByKsef = newInvoices.Count == 0
@@ -113,4 +113,29 @@ static List<KSeXInvoiceMetadata> Deduplicate(List<KSeXInvoiceMetadata> rows)
     foreach (var row in rows)
         dict.TryAdd(row.KsefNumber, row);
     return dict.Values.ToList();
+}
+
+static List<KSeXInvoiceMetadata> FilterNewInvoices(List<KSeXInvoiceMetadata> invoices, HashSet<string> existingKeys)
+{
+    var seen = new HashSet<string>(existingKeys, StringComparer.Ordinal);
+    var result = new List<KSeXInvoiceMetadata>();
+
+    foreach (var invoice in invoices)
+    {
+        var key = NormalizeInvoiceId(invoice.KsefNumber);
+        if (key.Length == 0) continue;
+
+        if (seen.Add(key))
+            result.Add(invoice);
+    }
+
+    return result;
+}
+
+static string NormalizeInvoiceId(string? value)
+{
+    if (string.IsNullOrWhiteSpace(value))
+        return "";
+
+    return value.Trim();
 }

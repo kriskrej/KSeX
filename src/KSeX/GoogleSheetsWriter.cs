@@ -90,7 +90,7 @@ public sealed class GoogleSheetsWriter
         foreach (var row in resp.Values)
         {
             if (row.Count == 0) continue;
-            var v = row[0]?.ToString();
+            var v = NormalizeInvoiceId(row[0]?.ToString());
             if (!string.IsNullOrWhiteSpace(v)) set.Add(v);
         }
         return set;
@@ -170,6 +170,14 @@ public sealed class GoogleSheetsWriter
         }
 
         return letters.ToString();
+    }
+
+    private static string NormalizeInvoiceId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+
+        return value.Trim();
     }
 
     private static string NormalizeCompanyName(string? name)
