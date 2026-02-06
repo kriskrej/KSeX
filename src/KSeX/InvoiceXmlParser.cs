@@ -7,6 +7,7 @@ namespace KSeX;
 public static class InvoiceXmlParser
 {
     private static readonly Regex MultiWhitespace = new(@"\s+", RegexOptions.Compiled);
+    private static readonly CultureInfo PolishCulture = new("pl-PL");
 
     public static string BuildLineItems(string xml)
     {
@@ -16,15 +17,45 @@ public static class InvoiceXmlParser
         var doc = XDocument.Parse(xml);
         var rows = doc.Descendants().Where(e => e.Name.LocalName == "FaWiersz");
 
-        var items = new List<string>();
+        var parsedItems = new List<LineItem>();
         foreach (var row in rows)
         {
             var name = NormalizeWhitespace(GetValue(row, "P_7"));
-            var quantity = NormalizeQuantity(GetValue(row, "P_8B"));
+            var quantityRaw = GetValue(row, "P_8B");
+            var quantityText = NormalizeQuantity(quantityRaw);
+            var quantityValue = ParseDecimal(quantityRaw);
 
-            var item = FormatItem(quantity, name);
-            if (item.Length > 0)
-                items.Add(item);
+            var unitNet = ParseDecimal(GetValue(row, "P_9A"));
+            var totalNet = ParseDecimal(GetValue(row, "P_9B"));
+            var totalGross = ParseDecimal(GetValue(row, "P_11A"));
+
+            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(quantityText) &&
+                unitNet == null && totalNet == null && totalGross == null)
+            {
+                continue;
+            }
+
+            parsedItems.Add(new LineItem(name, quantityText, quantityValue, unitNet, totalNet, totalGross));
+        }
+
+        var rendered = parsedItems
+            .Select(item => (Item: item, Text: FormatItem(item.QuantityText, item.Name)))
+            .Where(item => item.Text.Length > 0)
+            .ToList();
+
+        var includeCosts = rendered.Count > 1;
+        var items = new List<string>();
+        foreach (var item in rendered)
+        {
+            var text = item.Text;
+            if (includeCosts)
+            {
+                var cost = FormatCost(item.Item);
+                if (cost.Length > 0)
+                    text = $"{text} ({cost})";
+            }
+
+            items.Add(text);
         }
 
         return string.Join("\n", items);
@@ -41,8 +72,9 @@ public static class InvoiceXmlParser
         if (string.IsNullOrWhiteSpace(raw))
             return "";
 
-        if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
-            return value.ToString("0.####", CultureInfo.InvariantCulture);
+        var parsed = ParseDecimal(raw);
+        if (parsed.HasValue)
+            return parsed.Value.ToString("0.####", CultureInfo.InvariantCulture);
 
         return raw.Trim();
     }
@@ -75,4 +107,63 @@ public static class InvoiceXmlParser
 
         return $"{quantity}x{name}";
     }
+
+    private static string FormatCost(LineItem item)
+    {
+        var qty = item.Quantity;
+        var useNet = item.UnitNet != null || item.TotalNet != null;
+        var unit = useNet ? item.UnitNet : null;
+        var total = useNet ? item.TotalNet : item.TotalGross;
+
+        if (!qty.HasValue || qty.Value <= 0)
+        {
+            var amount = total ?? unit;
+            return amount.HasValue ? $"{FormatAmount(amount.Value)}zł" : "";
+        }
+
+        if (qty.Value == 1m)
+        {
+            var amount = total ?? unit;
+            return amount.HasValue ? $"{FormatAmount(amount.Value)}zł" : "";
+        }
+
+        if (!unit.HasValue && total.HasValue)
+            unit = total.Value / qty.Value;
+
+        if (!total.HasValue && unit.HasValue)
+            total = unit.Value * qty.Value;
+
+        if (!unit.HasValue || !total.HasValue)
+        {
+            var amount = total ?? unit;
+            return amount.HasValue ? $"{FormatAmount(amount.Value)}zł" : "";
+        }
+
+        return $"{FormatAmount(qty.Value)}*{FormatAmount(unit.Value)}={FormatAmount(total.Value)}zł";
+    }
+
+    private static decimal? ParseDecimal(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        if (decimal.TryParse(raw, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
+            return value;
+
+        if (decimal.TryParse(raw, NumberStyles.Any, PolishCulture, out value))
+            return value;
+
+        return null;
+    }
+
+    private static string FormatAmount(decimal value)
+        => value.ToString("0.####", CultureInfo.InvariantCulture);
+
+    private sealed record LineItem(
+        string Name,
+        string QuantityText,
+        decimal? Quantity,
+        decimal? UnitNet,
+        decimal? TotalNet,
+        decimal? TotalGross);
 }

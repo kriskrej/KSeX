@@ -12,12 +12,12 @@ public sealed class GoogleSheetsWriter
 
     private static readonly string[] PurchaseHeaders =
     {
-        "typ", "id", "nr faktury", "zaKSEFowane", "sprzedawca", "NIP", "netto", "brutto", "waluta", "pozycje"
+        "typ", "id", "nr faktury", "data wystawienia", "data faktury", "sprzedawca", "NIP", "netto", "vat", "brutto", "waluta", "pozycje"
     };
 
     private static readonly string[] SalesHeaders =
     {
-        "typ", "id", "nr faktury", "zaKSEFowane", "nabywca", "NIP", "netto", "brutto", "waluta", "pozycje"
+        "typ", "id", "nr faktury", "data wystawienia", "data faktury", "nabywca", "NIP", "netto", "vat", "brutto", "waluta", "pozycje"
     };
 
     private const int IdColumnIndex = 2;
@@ -120,10 +120,12 @@ public sealed class GoogleSheetsWriter
                 i.InvoiceType ?? "",
                 i.KsefNumber,
                 i.InvoiceNumber ?? "",
-                i.AcquisitionDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                i.IssueDate ?? "",
+                i.InvoicingDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "",
                 partnerName ?? "",
                 partnerNip ?? "",
                 i.NetAmount ?? 0,
+                i.VatAmount ?? 0,
                 i.GrossAmount ?? 0,
                 i.Currency ?? "",
                 lineItems
