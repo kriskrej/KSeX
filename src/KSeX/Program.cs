@@ -92,7 +92,7 @@ foreach (var company in cfg.Companies)
             try
             {
                 var xml = await ksef.GetInvoiceXmlAsync(auth.AccessToken, invoice.KsefNumber);
-                var items = InvoiceXmlParser.BuildLineItems(xml);
+                var items = InvoiceXmlParser.BuildLineItems(xml, invoice.Currency);
                 map[invoice.KsefNumber] = items;
             }
             catch (Exception ex)

@@ -9,10 +9,12 @@ public static class InvoiceXmlParser
     private static readonly Regex MultiWhitespace = new(@"\s+", RegexOptions.Compiled);
     private static readonly CultureInfo PolishCulture = new("pl-PL");
 
-    public static string BuildLineItems(string xml)
+    public static string BuildLineItems(string xml, string? currencyCode = null)
     {
         if (string.IsNullOrWhiteSpace(xml))
             return "";
+
+        var currencySuffix = ResolveCurrencySuffix(currencyCode);
 
         var doc = XDocument.Parse(xml);
         var rows = doc.Descendants().Where(e => e.Name.LocalName == "FaWiersz");
@@ -50,7 +52,7 @@ public static class InvoiceXmlParser
             var text = item.Text;
             if (includeCosts)
             {
-                var cost = FormatCost(item.Item);
+                var cost = FormatCost(item.Item, currencySuffix);
                 if (cost.Length > 0)
                     text = $"{text} ({cost})";
             }
@@ -108,7 +110,7 @@ public static class InvoiceXmlParser
         return $"{quantity}x{name}";
     }
 
-    private static string FormatCost(LineItem item)
+    private static string FormatCost(LineItem item, string currencySuffix)
     {
         var qty = item.Quantity;
         var useNet = item.UnitNet != null || item.TotalNet != null;
@@ -118,13 +120,13 @@ public static class InvoiceXmlParser
         if (!qty.HasValue || qty.Value <= 0)
         {
             var amount = total ?? unit;
-            return amount.HasValue ? $"{FormatAmount(amount.Value)}zł" : "";
+            return amount.HasValue ? $"{FormatAmount(amount.Value)}{currencySuffix}" : "";
         }
 
         if (qty.Value == 1m)
         {
             var amount = total ?? unit;
-            return amount.HasValue ? $"{FormatAmount(amount.Value)}zł" : "";
+            return amount.HasValue ? $"{FormatAmount(amount.Value)}{currencySuffix}" : "";
         }
 
         if (!unit.HasValue && total.HasValue)
@@ -136,10 +138,10 @@ public static class InvoiceXmlParser
         if (!unit.HasValue || !total.HasValue)
         {
             var amount = total ?? unit;
-            return amount.HasValue ? $"{FormatAmount(amount.Value)}zł" : "";
+            return amount.HasValue ? $"{FormatAmount(amount.Value)}{currencySuffix}" : "";
         }
 
-        return $"{FormatAmount(qty.Value)}*{FormatAmount(unit.Value)}={FormatAmount(total.Value)}zł";
+        return $"{FormatAmount(qty.Value)}*{FormatAmount(unit.Value)}={FormatAmount(total.Value)}{currencySuffix}";
     }
 
     private static decimal? ParseDecimal(string raw)
@@ -158,6 +160,15 @@ public static class InvoiceXmlParser
 
     private static string FormatAmount(decimal value)
         => value.ToString("0.####", CultureInfo.InvariantCulture);
+
+    private static string ResolveCurrencySuffix(string? currencyCode)
+    {
+        if (string.IsNullOrWhiteSpace(currencyCode))
+            return "zł";
+
+        var code = currencyCode.Trim().ToUpperInvariant();
+        return code == "PLN" ? "zł" : code;
+    }
 
     private sealed record LineItem(
         string Name,
