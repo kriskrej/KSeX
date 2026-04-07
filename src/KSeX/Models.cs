@@ -141,4 +141,3 @@ public sealed record KSeXInvoiceMetadata
     [JsonPropertyName("isSelfInvoicing")] public bool? IsSelfInvoicing { get; init; }
     [JsonPropertyName("invoiceHash")] public string? InvoiceHash { get; init; }
 }
-

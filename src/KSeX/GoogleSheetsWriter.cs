@@ -104,8 +104,8 @@ public sealed class GoogleSheetsWriter
         var values = new List<IList<object>>();
         foreach (var i in invoices)
         {
-            var sellerName = NormalizeCompanyName(i.Seller?.Name);
-            var buyerName = NormalizeCompanyName(i.Buyer?.Name);
+            var sellerName = GetExactCompanyName(i.Seller?.Name);
+            var buyerName = GetExactCompanyName(i.Buyer?.Name);
             var partnerNip = isSales ? i.Buyer?.Identifier?.Value : i.Seller?.Nip;
             var lineItems = lineItemsByKsefNumber != null && lineItemsByKsefNumber.TryGetValue(i.KsefNumber, out var items)
                 ? items
@@ -179,31 +179,11 @@ public sealed class GoogleSheetsWriter
         return value.Trim();
     }
 
-    private static string NormalizeCompanyName(string? name)
+    private static string GetExactCompanyName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
             return "";
 
-        var normalized = name.Replace(
-            "spółka z ograniczoną odpowiedzialnością",
-            "sp. z o.o.",
-            StringComparison.OrdinalIgnoreCase);
-
-        normalized = normalized.Replace(
-            "spolka z ograniczona odpowiedzialnoscia",
-            "sp. z o.o.",
-            StringComparison.OrdinalIgnoreCase);
-
-        normalized = normalized.Replace(
-            "spółka akcyjna",
-            "SA",
-            StringComparison.OrdinalIgnoreCase);
-
-        normalized = normalized.Replace(
-            "spolka akcyjna",
-            "SA",
-            StringComparison.OrdinalIgnoreCase);
-
-        return normalized;
+        return name.Trim();
     }
 }
