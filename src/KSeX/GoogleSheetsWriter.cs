@@ -10,14 +10,9 @@ public sealed class GoogleSheetsWriter
 {
     private readonly SheetsService _service;
 
-    private static readonly string[] PurchaseHeaders =
+    private static readonly string[] InvoiceHeaders =
     {
-        "typ", "id", "nr faktury", "data wystawienia", "data faktury", "sprzedawca", "NIP", "netto", "vat", "brutto", "waluta", "pozycje"
-    };
-
-    private static readonly string[] SalesHeaders =
-    {
-        "typ", "id", "nr faktury", "data wystawienia", "data faktury", "nabywca", "NIP", "netto", "vat", "brutto", "waluta", "pozycje"
+        "typ", "id", "nr faktury", "data wystawienia", "data faktury", "sprzedawca", "nabywca", "NIP", "netto", "vat", "brutto", "waluta", "pozycje"
     };
 
     private const int IdColumnIndex = 2;
@@ -109,7 +104,8 @@ public sealed class GoogleSheetsWriter
         var values = new List<IList<object>>();
         foreach (var i in invoices)
         {
-            var partnerName = NormalizeCompanyName(isSales ? i.Buyer?.Name : i.Seller?.Name);
+            var sellerName = NormalizeCompanyName(i.Seller?.Name);
+            var buyerName = NormalizeCompanyName(i.Buyer?.Name);
             var partnerNip = isSales ? i.Buyer?.Identifier?.Value : i.Seller?.Nip;
             var lineItems = lineItemsByKsefNumber != null && lineItemsByKsefNumber.TryGetValue(i.KsefNumber, out var items)
                 ? items
@@ -122,7 +118,8 @@ public sealed class GoogleSheetsWriter
                 i.InvoiceNumber ?? "",
                 i.IssueDate ?? "",
                 i.InvoicingDate?.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) ?? "",
-                partnerName ?? "",
+                sellerName ?? "",
+                buyerName ?? "",
                 partnerNip ?? "",
                 i.NetAmount ?? 0,
                 i.VatAmount ?? 0,
@@ -140,7 +137,7 @@ public sealed class GoogleSheetsWriter
     }
 
     private static string[] GetHeaders(bool isSales)
-        => isSales ? SalesHeaders : PurchaseHeaders;
+        => InvoiceHeaders;
 
     private static bool HeaderMatches(IList<IList<object>>? values, string[] headers)
     {
